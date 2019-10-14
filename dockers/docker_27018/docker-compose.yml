@@ -1,0 +1,21 @@
+version: '3'
+services:
+  mongo:
+    image: "mongo:3.4"
+    command: mongod --port 27018
+    ports:
+      - "27018:27018"
+    expose:
+      - "27018"  
+  store:
+    # build: https://github.com/webAutomaticTest/store.git
+    image: "wchen001/webefg_storage18"
+    ports:
+      - "8086:8086"
+    depends_on:
+      - "mongo"  
+
+volumes:
+  screens:
+     
+   
