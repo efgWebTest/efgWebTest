@@ -7,12 +7,12 @@ const perf = require('execution-time')();
 // var rootUrl = "https://www.labri.fr";
 // var noStateless = "labri";
 
-var rootUrl = "https://stackoverflow.com";
-var noStateless = "stackoverflow.com";
+// var rootUrl = "https://stackoverflow.com";
+// var noStateless = "stackoverflow.com";
 
 
-// var rootUrl = "http://localhost:8888/Joomla_3_5_0/";
-// var noStateless = "http://localhost:8888/Joomla_3_5_0";
+var rootUrl = "http://localhost:8888/Joomla_3_5_0/";
+var noStateless = "http://localhost:8888/Joomla_3_5_0";
 
 // beginRoot(rootUrl);
 
@@ -30,7 +30,7 @@ async function rootDeepFirstSearch(rootUrl) {
 	//2.Recursive
 	await deepFirstSearchRecursive(rootUrl);
 	const resultsDfsTime = perf.stop('dfsTime');
-	console.log(resultsDfsTime.time);
+	console.log(resultsDfsTime.time); // in milliseconds
 	console.log('testing the whole web app is finished!');
 
 }
@@ -39,7 +39,22 @@ async function deepFirstSearchRecursive(url) {
 	//1. goto this url and crawl to get all actions.
 	// this.page = await createPage();
 	var crawlActions = await crawlAllPossibleActions(url);
-	// console.log(crawlActions);
+    var clickActions = crawlActions.clickActions;
+    var typeActions = crawlActions.typeActions;
+    console.log('clickActions length: ', clickActions.length);
+    console.log('typeActions length: ', typeActions.length);
+	console.log(clickActions);
+
+    //save all the Type actions.
+    for (var i = typeActions.length - 1; i >= 0; i--) {
+        let typeActionExisted = await findOneAction(typeActions[i]);
+        if (typeActionExisted.length === 0 ) {
+            let actionToStore = typeActions[i];
+            await saveActionToMongodb(actionToStore);
+        }
+    }
+    
+
 
 	//2. for each action do {
 		//2.1  run the action
@@ -47,22 +62,23 @@ async function deepFirstSearchRecursive(url) {
 		//2.3  GUI = GUI U newUrl
 		//2.4  deepFirstSearchRecursive(newUrl)
 	//}
-	for (var i = crawlActions.length - 1; i >= 0; i--) {
+	for (var i = clickActions.length - 1; i >= 0; i--) {
 
 		//  Did the action be excuted yet? Has it been implemented?
-		var actionExisted = await findOneAction(crawlActions[i]);
+		var actionExisted = await findOneAction(clickActions[i]);
 		if (actionExisted.length === 0 ) {
 			
 			//2.0  run the action		
-			// let runResult = await runOneAction(crawlActions[i]);
-			let runResult = await runClickAction(crawlActions[i]);
+			// let runResult = await runOneAction(clickActions[i]);
+			let runResult = await runClickAction(clickActions[i]);
 			console.log(runResult.success);
 			// 2.1 save the action to mongo
-			let actionToStore = crawlActions[i];
+			let actionToStore = clickActions[i];
 			actionToStore.success = runResult.success;
 			await saveActionToMongodb(actionToStore);
 
 			if (runResult.success) {
+                console.log('run action result success');
 				//2.2  newUrl = get the new window or Url
 				let newUrl = runResult.newUrl;
 
@@ -94,132 +110,6 @@ async function deepFirstSearchRecursive(url) {
 
 
 
-
-
-async function beginRoot(rootUrl){
-    //initial a browser and create a page.
-    this.page = await createPage();
-    // let page = await createPage();
-
-    // var rootGotoAction = new wat_scenario.GotoAction(rootUrl);
-    // await saveActionToMongodb(rootGotoAction);
-    var rootGotoAction = {
-        preUrl : rootUrl,
-        action : new wat_scenario.GotoAction(rootUrl)
-    };
-
-    console.log('rootGotoAction is ',rootGotoAction);
-
-
-    // GUI = Root
-    // var tree = rootUrl;    
-    // await saveRootGUI(rootUrl);
-    
-    // await deepFirstSearch(page, rootGotoAction);    
-    await deepFirstSearch(rootGotoAction);    
-    // console.log("the url after goBack =" + page.url());
-    // await page.close();
-    // await browser.close();
-}
-
-// async function deepFirstSearch(page, action){   
-async function deepFirstSearch(actionWindow){ 
-    var action = actionWindow.action;  
-    var preUrl = actionWindow.preUrl; //action is in the page of this URL
-    console.log('the preUrl is:', preUrl);
-    // var preUrl = page.url(); //action is in the page of this URL    
-    // var preUrl = this.page.url(); //action is in the page of this URL
-    // if (preUrl.indexOf('about:blank')!= -1) {
-    //     preUrl = this.rootUrl;
-    // }   
-    
-    var actionExisted = await findOneAction(actionWindow);
-    // console.log(actionExisted);
-    if (actionExisted.length === 0 ) {
-        // console.log("can not find one action and save the new action to mongo");
-        //excute the action
-        console.log('action that will be excute:');
-        console.log(action);
-        var scenario = new wat_scenario.Scenario();
-        var waitAction = new wat_scenario.WaitAction(2000);
-        scenario.addAction(action);
-        scenario.addAction(waitAction);
-        // let runSecnarioResult = await scenario.run(page);
-
-        let runSecnarioResult = await scenario.run(this.page);       
-
-        // let runActionResult = await action.run(page);
-        // var runActionResult = await runAction(page, action);        
-        // console.log("excute the action result:");
-        // console.log(runSecnarioResult);
-        if (runSecnarioResult.success) {
-            // console.log("the action is runned success! Now it will be save to mongo"); 
-            await saveActionToMongodb(actionWindow);
-            //get the new window (url)
-            // var url = page.url();
-            var url = this.page.url();
-            //Union the GUI
-            //GUI = GUI U url
-            var urlExisted = await findOneUrl(preUrl, url);
-            if (urlExisted.length === 0 ) {
-                await saveUnionGUI(preUrl, url);
-            }    
-
-            var windowExisted = await findOneWindow(url);
-            // if (windowExisted.length === 0)
-            if ((url.indexOf(noStateless) != -1) && (windowExisted.length === 0)) {// no stateless// make sure it is inside of the web
-                
-                await saveWindowToMongodb(url);       
-
-                //and crawl the children actions
-                // await page.addScriptTag({path:'./optimal-select.js'});
-                await this.page.addScriptTag({path:'./optimal-select.js'});
-                // console.log("test");
-                // let selectors = await page.evaluate(scanAction);
-                let selectors = await this.page.evaluate(scanAction);
-
-                //get all the actions.                
-                var nextActions = [];
-                // selectors.forEach(selector => {
-                //     nextActions.push({
-                //         action : new wat_scenario.ClickAction(selector)
-                //     });
-                // });
-                for (var i = selectors.length - 1; i >= 0; i--) {
-                    nextActions.push({
-                        preUrl : url,
-                        action : new wat_scenario.ClickAction(selectors[i])
-                    });
-                }
-
-                for (var i = nextActions.length - 1; i >= 0; i--) {
-                    // await deepFirstSearch(page, nextActions[i].action);
-                    await deepFirstSearch(nextActions[i]);
-                }
-
-            }
-            // page.goBack();
-            // this.page.goBack();
-            goBackToPreUrl(preUrl);
-
-        } else if(runSecnarioResult.success === false){
-            console.log("the action is runned false!");            
-            await this.page.close();
-            await this.browser.close();
-            this.page = await createPage();
-
-            let newGotoAction = new wat_scenario.GotoAction(preUrl);
-            console.log('after action failed, go to the preUrl is: ', preUrl);
-            let scenario = new wat_scenario.Scenario();
-            scenario.addAction(newGotoAction);
-            let runGotoSecnarioResult = await scenario.run(this.page);
-        }
-        
-    }  
-     
-}
-
-
 async function createPage() {
     let browser;
     let page;    
@@ -234,18 +124,39 @@ async function createPage() {
 }
 
 function scanAction() {
+    //click actions include <a>  <button> 
     let actions = [];
     let computeCSSSelector = window['OptimalSelect'].select;
     let aElements = document.querySelectorAll('a');
     for (let i=0 ; i < aElements.length ; i++) {
         if (! isMailTo(aElements[i])) actions.push(computeCSSSelector(aElements[i]));
     }
+    // let buttonElements = document.querySelectorAll('button');
+    // for (let i=0 ; i < buttonElements.length ; i++) {
+    //     if (! isMailTo(buttonElements[i])) actions.push(computeCSSSelector(buttonElements[i]));
+    // }
     return actions;
 
     function isMailTo(element) {
         let href = element.href;
         return href && (href.toLowerCase().indexOf('mailto') > -1);        
     }
+}
+
+function scanTypeAction() {
+    let typeActions = [];
+    let computeCSSSelector = window['OptimalSelect'].select;   
+    //inputs include 'input.text'  'input.password'
+    let inputElements = document.querySelectorAll("input[type='text']");    
+    for (let i=0 ; i < inputElements.length ; i++) {
+        typeActions.push(computeCSSSelector(inputElements[i]));
+    }
+    let passwordElements = document.querySelectorAll("input[type='password']");    
+    for (let i=0 ; i < passwordElements.length ; i++) {
+        typeActions.push(computeCSSSelector(passwordElements[i]));
+    }  
+
+    return typeActions;
 }
 
 function saveActionToMongodb(action){
@@ -345,13 +256,33 @@ async function crawlAllPossibleActions(url){
 		let runGotoSecnarioResult = await scenario.run(page);
 		if (runGotoSecnarioResult.success) {
 			await page.addScriptTag({path:'./optimal-select.js'});
-			let selectors = await page.evaluate(scanAction);
-			for (var i = selectors.length - 1; i >= 0; i--) {
-				await crawlActions.push({
-					preUrl : url,
-					action : new wat_scenario.ClickAction(selectors[i])
-				});
-			}
+            let clickSelectors = await page.evaluate(scanAction);
+			let typeSelectors = await page.evaluate(scanTypeAction);
+            // let selectors = await page.evaluate(scanAllAction);
+            // let clickSelectors = selectors.clickActions;
+            console.log(clickSelectors.length);
+            console.log(typeSelectors.length);
+
+            let clickActions = [];
+            let typeActions = [];
+
+            for (var i = clickSelectors.length - 1; i >= 0; i--) {
+                await clickActions.push({
+                   preUrl : url,
+                   action : new wat_scenario.ClickAction(clickSelectors[i])                   
+               });
+            }
+
+            for (var i = typeSelectors.length - 1; i >= 0; i--) {
+                await typeActions.push({
+                    preUrl : url,
+                    action : new wat_scenario.TypeAction(typeSelectors[i], 'input example')                    
+                });
+            }
+
+            crawlActions.clickActions = clickActions;
+            crawlActions.typeActions = typeActions;
+            console.log(crawlActions.typeActions);
 		}
 		await page.close();
 		await this.browser.close();
@@ -396,15 +327,19 @@ async function runClickAction(crawlAction){
     let actionJSON = JSON.parse(JSON.stringify(action));
     let page = await createPage();
 
-    let gotoAction = new wat_scenario.GotoAction(url);
-    console.log('goto this url: ', url);
+    let gotoAction = new wat_scenario.GotoAction(url);    
 
     try {
+        console.log('goto this url: ', url);
     	await gotoAction.run(page);
+        console.log('click the selector: ', actionJSON.selector);
     	await page.click(actionJSON.selector);
+        await page.waitFor(1000);
     	await page.waitForSelector('body');
+        // console.log('waitForSelector body is done.');
     	// page.waitFor(2000);
-    	let newUrl = page.url();
+    	let newUrl = await page.url();
+        console.log('after click action, the new Url is:', newUrl);
 
     	// page.on('newpage', async (new_page) => {
     	// 	let url = new_page.url();

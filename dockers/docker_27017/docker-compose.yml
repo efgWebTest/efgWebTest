@@ -13,7 +13,19 @@ services:
     ports:
       - "8086:8086"
     depends_on:
-      - "mongo"  
+      - "mongo"
+  front:
+    build: 
+      context: https://github.com/efgWebTest/efgWebTest.git
+      dockerfile: ./front/DockerfileDebug
+    image: "wchen001/webefg_front"
+    volumes:
+      - screens:/var/www/public/img/screen
+    ports:
+      - 8080:80
+    restart: always
+    depends_on:
+      - "store"  
 
 volumes:
   screens:

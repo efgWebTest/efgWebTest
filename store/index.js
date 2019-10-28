@@ -5,7 +5,7 @@ const bodyParser = require('body-parser');
 
 const argv = require('yargs').argv;
 const mongoServerName = argv.mongo;
-const dbUrl = `mongodb://${mongoServerName}:27020/webefg_storage`;
+const dbUrl = `mongodb://${mongoServerName}:27023/webefg_storage`;
 
 winston.info(`Running Web EFG Storage (connected to Mongo Server : ${mongoServerName})`);
 winston.info(`Running Web EFG Storage (connected to Mongo Server : ${dbUrl})`);
