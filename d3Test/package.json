@@ -1,0 +1,16 @@
+{
+  "name": "d3Test",
+  "version": "1.0.0",
+  "description": "test d3 and dot to generate the graph",
+  "main": "index.js",
+  "scripts": {
+    "test": "node index.js"
+  },
+  "author": "wei",
+  "license": "ISC",
+  "dependencies": {
+    "@observablehq/graphviz": "^0.2.1",
+    "d3": "^5.12.0",
+    "tonic-d3": "^1.0.1"
+  }
+}
